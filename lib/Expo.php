@@ -107,25 +107,33 @@ class Expo
         }
 
         // Gets the expo tokens for the interests
-        $recipients = $this->registrar->getInterests($interests);
+        $allRecipients = $this->registrar->getInterests($interests);
 
-        foreach ($recipients as $token) {
-            $postData[] = $data + ['to' => $token];
+        $recipientsGroups = [];
+        if (count($allRecipients) > 100) {
+            $recipientsGroups = array_chunk($allRecipients, 100);
+        } else {
+            array_push($recipientsGroups, $allRecipients);
         }
 
-        $ch = $this->prepareCurl();
+        foreach ($recipientsGroups as $recipients) {
 
-        curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($postData));
+            foreach ($recipients as $token) {
+                $postData[] = $data + ['to' => $token];
+            }
 
-        $response = $this->executeCurl($ch);
+            $ch = $this->prepareCurl();
 
-        // If the notification failed completely, throw an exception with the details
-        if ($debug && $this->failedCompletely($response, $recipients)) {
-            throw ExpoException::failedCompletelyException($response);
+            curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($postData));
+            $response = $this->executeCurl($ch);
+
+            // If the notification failed completely, throw an exception with the details
+            if ($debug && $this->failedCompletely($response, $recipients)) {
+                throw ExpoException::failedCompletelyException($response);
+            }
         }
 
         return $response;
-    }
 
     /**
      * Determines if the request we sent has failed completely
